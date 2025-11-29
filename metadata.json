@@ -1,0 +1,5 @@
+{
+  "name": "CraftConnect - Handmade Course Platform",
+  "description": "A comprehensive platform for browsing, enrolling in, and managing handmade craft workshops. Features role-based access for students, instructors, and admins, with AI-assisted course creation.",
+  "requestFramePermissions": []
+}
