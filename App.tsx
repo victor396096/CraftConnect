@@ -60,6 +60,32 @@ const MOCK_COURSES: Course[] = [
     enrolledStudentIds: [],
     imageUrl: 'https://picsum.photos/id/90/800/600',
     category: 'Painting'
+  },
+  {
+    id: 'c4',
+    title: 'Rustic Wood Stool',
+    description: 'Build your own three-legged stool using traditional joinery. No power tools needed.',
+    instructorId: '2',
+    instructorName: 'Bob Instructor',
+    date: '2023-12-12',
+    price: 150,
+    capacity: 5,
+    enrolledStudentIds: [],
+    imageUrl: 'https://picsum.photos/id/106/800/600',
+    category: 'Woodworking'
+  },
+  {
+    id: 'c5',
+    title: 'Intro to Weaving',
+    description: 'Learn the basics of weaving on a frame loom. Create a beautiful wall hanging.',
+    instructorId: '1',
+    instructorName: 'Alice Admin',
+    date: '2023-12-18',
+    price: 85,
+    capacity: 10,
+    enrolledStudentIds: [],
+    imageUrl: 'https://picsum.photos/id/225/800/600',
+    category: 'Textiles'
   }
 ];
 
@@ -215,7 +241,10 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <div className="p-6 flex-1 flex flex-col">
-                  <p className="text-gray-600 mb-4 flex-1">{course.description}</p>
+                  <div className="flex justify-between items-start mb-4">
+                     <p className="text-gray-600 flex-1">{course.description}</p>
+                     <span className="ml-2 text-[10px] uppercase font-bold text-brand-600 tracking-wider bg-brand-50 px-2 py-0.5 rounded-full whitespace-nowrap">{course.category}</span>
+                  </div>
                   
                   <div className="grid grid-cols-2 gap-4 text-sm text-gray-500 mb-6">
                     <div className="flex items-center gap-2">

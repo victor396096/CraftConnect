@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { User, Course, UserRole } from '../types';
 import { Button } from './Button';
 import { generateCourseDetails } from '../services/geminiService';
-import { Plus, Trash2, Edit2, Users, BookOpen, Sparkles, X } from 'lucide-react';
+import { Plus, Trash2, Edit2, Users, BookOpen, Sparkles, X, Filter } from 'lucide-react';
 
 interface DashboardProps {
   user: User;
@@ -12,6 +12,8 @@ interface DashboardProps {
   onDeleteCourse: (courseId: string) => void;
   onEnroll?: (courseId: string) => void; // Not used in dashboard but prop consistency
 }
+
+const CATEGORIES = ['Ceramics', 'Painting', 'Leather', 'Woodworking', 'Textiles', 'General'];
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
   user, 
@@ -23,6 +25,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [activeTab, setActiveTab] = useState<'my-courses' | 'all-courses' | 'users'>('my-courses');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
   // New Course Form State
   const [newCourseTitle, setNewCourseTitle] = useState('');
@@ -30,13 +33,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [newCourseDate, setNewCourseDate] = useState('');
   const [newCoursePrice, setNewCoursePrice] = useState('50');
   const [newCourseCapacity, setNewCourseCapacity] = useState('10');
+  const [newCourseCategory, setNewCourseCategory] = useState('General');
 
-  // Filter courses based on role
-  const displayedCourses = activeTab === 'all-courses' 
+  // Filter courses based on role and category
+  const filteredByRole = activeTab === 'all-courses' 
     ? courses 
     : user.role === UserRole.INSTRUCTOR 
       ? courses.filter(c => c.instructorId === user.id)
       : courses.filter(c => c.enrolledStudentIds.includes(user.id));
+
+  const displayedCourses = filteredByRole.filter(c => 
+    selectedCategory === 'All' || c.category === selectedCategory
+  );
 
   const handleGenerateAi = async () => {
     if (!newCourseTitle) return;
@@ -61,7 +69,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       instructorName: user.name,
       enrolledStudentIds: [],
       imageUrl: `https://picsum.photos/400/300?random=${Date.now()}`,
-      category: 'General'
+      category: newCourseCategory
     };
     onAddCourse(newCourse);
     setIsModalOpen(false);
@@ -69,6 +77,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setNewCourseTitle('');
     setNewCourseDesc('');
     setNewCourseDate('');
+    setNewCourseCategory('General');
   };
 
   const isInstructorOrAdmin = user.role === UserRole.ADMIN || user.role === UserRole.INSTRUCTOR;
@@ -149,6 +158,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         ) : (
           <div>
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="font-semibold text-gray-700 hidden md:block">
+                  {activeTab === 'my-courses' ? (user.role === UserRole.STUDENT ? 'Enrolled Workshops' : 'Your Workshops') : 'All Workshops'}
+                </h3>
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <Filter className="w-4 h-4 text-gray-500" />
+                    <select 
+                      value={selectedCategory} 
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="border border-gray-200 rounded-lg text-sm px-3 py-1.5 outline-none focus:border-brand-500 bg-white flex-1"
+                    >
+                      <option value="All">All Categories</option>
+                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                </div>
+            </div>
+
             {displayedCourses.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -161,6 +187,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <div className="flex items-start gap-4">
                       <img src={course.imageUrl} alt="" className="w-16 h-16 rounded-md object-cover bg-gray-100" />
                       <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] uppercase font-bold text-brand-600 tracking-wider bg-brand-50 px-2 py-0.5 rounded-full">{course.category}</span>
+                        </div>
                         <h4 className="font-semibold text-gray-900">{course.title}</h4>
                         <p className="text-sm text-gray-500 line-clamp-1">{course.description}</p>
                         <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
@@ -219,6 +248,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     Auto-Fill
                   </Button>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select
+                    value={newCourseCategory}
+                    onChange={(e) => setNewCourseCategory(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 outline-none"
+                >
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
 
               <div>
