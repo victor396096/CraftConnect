@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { User, Course, UserRole } from '../types';
 import { Button } from './Button';
 import { generateCourseDetails } from '../services/geminiService';
-import { Plus, Trash2, Edit2, Users, BookOpen, Sparkles, X, Filter } from 'lucide-react';
+import { Plus, Trash2, Users, BookOpen, Sparkles, X, Filter, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 
 interface DashboardProps {
   user: User;
@@ -22,10 +22,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onAddCourse, 
   onDeleteCourse 
 }) => {
-  const [activeTab, setActiveTab] = useState<'my-courses' | 'all-courses' | 'users'>('my-courses');
+  const [activeTab, setActiveTab] = useState<'my-courses' | 'all-courses' | 'users' | 'schedule'>('my-courses');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  
+  // Calendar State
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   // New Course Form State
   const [newCourseTitle, setNewCourseTitle] = useState('');
@@ -80,6 +83,88 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setNewCourseCategory('General');
   };
 
+  // Calendar Helpers
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const days = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay();
+    return { days, firstDay, year, month };
+  };
+
+  const changeMonth = (offset: number) => {
+    const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1);
+    setCurrentMonth(newDate);
+  };
+
+  const renderCalendar = () => {
+    const { days, firstDay, year, month } = getDaysInMonth(currentMonth);
+    const monthName = currentMonth.toLocaleString('default', { month: 'long' });
+    
+    // Get courses for this month
+    const monthCourses = filteredByRole.filter(c => {
+      const courseDate = new Date(c.date);
+      return courseDate.getMonth() === month && courseDate.getFullYear() === year;
+    });
+
+    const daysArray = Array.from({ length: days }, (_, i) => i + 1);
+    const emptySlots = Array.from({ length: firstDay }, (_, i) => i);
+
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Calendar Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
+          <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+            <CalendarIcon className="w-5 h-5 text-brand-600" />
+            {monthName} {year}
+          </h3>
+          <div className="flex gap-2">
+            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-lg border border-transparent hover:border-gray-200 transition-all">
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-lg border border-transparent hover:border-gray-200 transition-all">
+              <ChevronRight className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="p-4">
+          <div className="grid grid-cols-7 mb-2">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+              <div key={d} className="text-center text-xs font-semibold text-gray-400 uppercase tracking-wider py-2">
+                {d}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-2">
+            {emptySlots.map(i => <div key={`empty-${i}`} className="h-24 md:h-32 bg-gray-50/30 rounded-lg"></div>)}
+            {daysArray.map(day => {
+              const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const daysCourses = monthCourses.filter(c => c.date === dateStr);
+              const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
+
+              return (
+                <div key={day} className={`h-24 md:h-32 border rounded-lg p-2 transition-all hover:shadow-md overflow-y-auto ${isToday ? 'border-brand-300 bg-brand-50/20' : 'border-gray-100 bg-white'}`}>
+                  <div className={`text-sm font-medium mb-1 ${isToday ? 'text-brand-600' : 'text-gray-700'}`}>
+                    {day}
+                  </div>
+                  <div className="space-y-1">
+                    {daysCourses.map(course => (
+                      <div key={course.id} className="text-xs bg-brand-100 text-brand-800 p-1.5 rounded border border-brand-200 truncate" title={course.title}>
+                        {course.title}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const isInstructorOrAdmin = user.role === UserRole.ADMIN || user.role === UserRole.INSTRUCTOR;
 
   return (
@@ -106,6 +191,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
         >
           {user.role === UserRole.STUDENT ? 'My Enrollments' : 'My Courses'}
         </button>
+        
+        {user.role === UserRole.STUDENT && (
+          <button
+            onClick={() => setActiveTab('schedule')}
+            className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${activeTab === 'schedule' ? 'border-b-2 border-brand-600 text-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            My Schedule
+          </button>
+        )}
+
         {user.role === UserRole.ADMIN && (
           <>
             <button
@@ -156,6 +251,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </tbody>
             </table>
           </div>
+        ) : activeTab === 'schedule' ? (
+          renderCalendar()
         ) : (
           <div>
             <div className="flex justify-between items-center mb-6">

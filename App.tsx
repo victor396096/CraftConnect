@@ -21,6 +21,13 @@ const MOCK_USERS: User[] = [
   { id: '3', name: 'Charlie Student', email: 'charlie@gmail.com', role: UserRole.STUDENT, avatar: 'https://picsum.photos/id/3/200/200' },
 ];
 
+// Helper to get a date string N days from now
+const getDateFromNow = (days: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().split('T')[0];
+};
+
 const MOCK_COURSES: Course[] = [
   {
     id: 'c1',
@@ -28,7 +35,7 @@ const MOCK_COURSES: Course[] = [
     description: 'Learn the fundamentals of wheel throwing and glazing techniques. Create your own bowl set.',
     instructorId: '2',
     instructorName: 'Bob Instructor',
-    date: '2023-11-15',
+    date: getDateFromNow(2),
     price: 120,
     capacity: 8,
     enrolledStudentIds: ['3'],
@@ -41,7 +48,7 @@ const MOCK_COURSES: Course[] = [
     description: 'Design and stitch your own leather wallet. Tools and materials provided.',
     instructorId: '2',
     instructorName: 'Bob Instructor',
-    date: '2023-11-20',
+    date: getDateFromNow(7),
     price: 95,
     capacity: 6,
     enrolledStudentIds: [],
@@ -54,10 +61,10 @@ const MOCK_COURSES: Course[] = [
     description: 'Capture the beauty of nature with watercolor techniques. Suitable for beginners.',
     instructorId: '1',
     instructorName: 'Alice Admin',
-    date: '2023-12-05',
+    date: getDateFromNow(10),
     price: 60,
     capacity: 12,
-    enrolledStudentIds: [],
+    enrolledStudentIds: ['3'],
     imageUrl: 'https://picsum.photos/id/90/800/600',
     category: 'Painting'
   },
@@ -67,7 +74,7 @@ const MOCK_COURSES: Course[] = [
     description: 'Build your own three-legged stool using traditional joinery. No power tools needed.',
     instructorId: '2',
     instructorName: 'Bob Instructor',
-    date: '2023-12-12',
+    date: getDateFromNow(14),
     price: 150,
     capacity: 5,
     enrolledStudentIds: [],
@@ -80,7 +87,7 @@ const MOCK_COURSES: Course[] = [
     description: 'Learn the basics of weaving on a frame loom. Create a beautiful wall hanging.',
     instructorId: '1',
     instructorName: 'Alice Admin',
-    date: '2023-12-18',
+    date: getDateFromNow(20),
     price: 85,
     capacity: 10,
     enrolledStudentIds: [],
