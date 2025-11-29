@@ -201,7 +201,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                     {isInstructorOrAdmin && (
                       <div className="mt-4 md:mt-0 flex items-center gap-2">
-                         <Button variant="danger" className="text-sm py-1 px-3" onClick={() => onDeleteCourse(course.id)}>
+                         <Button 
+                            variant="danger" 
+                            className="text-sm py-1 px-3" 
+                            onClick={() => {
+                              if (window.confirm("Are you sure you want to delete this course?")) {
+                                onDeleteCourse(course.id);
+                              }
+                            }}
+                          >
                             <Trash2 className="w-4 h-4" />
                          </Button>
                       </div>

@@ -139,9 +139,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteCourse = (courseId: string) => {
-    if (confirm("Are you sure you want to delete this course?")) {
-      setCourses(prev => prev.filter(c => c.id !== courseId));
-    }
+    setCourses(prev => prev.filter(c => c.id !== courseId));
   };
 
   // Views
