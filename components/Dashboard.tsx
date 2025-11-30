@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { User, Course, UserRole } from '../types';
 import { Button } from './Button';
 import { generateCourseDetails } from '../services/geminiService';
-import { Plus, Trash2, Users, BookOpen, Sparkles, X, Filter, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Trash2, Users, BookOpen, Sparkles, X, Filter, ChevronLeft, ChevronRight, Calendar as CalendarIcon, RefreshCw } from 'lucide-react';
 
 interface DashboardProps {
   user: User;
@@ -25,7 +25,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [activeTab, setActiveTab] = useState<'my-courses' | 'all-courses' | 'users' | 'schedule'>('my-courses');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Filters State
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedInstructor, setSelectedInstructor] = useState<string>('All');
+  const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: '', end: '' });
   
   // Calendar State
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -45,9 +49,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
       ? courses.filter(c => c.instructorId === user.id)
       : courses.filter(c => c.enrolledStudentIds.includes(user.id));
 
-  const displayedCourses = filteredByRole.filter(c => 
-    selectedCategory === 'All' || c.category === selectedCategory
-  );
+  // Get list of instructors for filter
+  const instructors = allUsers.filter(u => u.role === UserRole.INSTRUCTOR);
+  
+  // Determine if instructor filter should be shown
+  const showInstructorFilter = activeTab === 'all-courses' || user.role === UserRole.STUDENT;
+
+  const displayedCourses = filteredByRole.filter(c => {
+    const matchesCategory = selectedCategory === 'All' || c.category === selectedCategory;
+    const matchesInstructor = selectedInstructor === 'All' || c.instructorId === selectedInstructor;
+    const matchesDateStart = !dateFilter.start || c.date >= dateFilter.start;
+    const matchesDateEnd = !dateFilter.end || c.date <= dateFilter.end;
+
+    return matchesCategory && matchesInstructor && matchesDateStart && matchesDateEnd;
+  });
+
+  const resetFilters = () => {
+    setSelectedCategory('All');
+    setSelectedInstructor('All');
+    setDateFilter({ start: '', end: '' });
+  };
+
+  const hasActiveFilters = selectedCategory !== 'All' || selectedInstructor !== 'All' || dateFilter.start || dateFilter.end;
 
   const handleGenerateAi = async () => {
     if (!newCourseTitle) return;
@@ -255,27 +278,83 @@ export const Dashboard: React.FC<DashboardProps> = ({
           renderCalendar()
         ) : (
           <div>
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="font-semibold text-gray-700 hidden md:block">
+            {/* Extended Filters Toolbar */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+                <h3 className="font-semibold text-gray-700 whitespace-nowrap">
                   {activeTab === 'my-courses' ? (user.role === UserRole.STUDENT ? 'Enrolled Workshops' : 'Your Workshops') : 'All Workshops'}
                 </h3>
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                    <Filter className="w-4 h-4 text-gray-500" />
-                    <select 
-                      value={selectedCategory} 
-                      onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="border border-gray-200 rounded-lg text-sm px-3 py-1.5 outline-none focus:border-brand-500 bg-white flex-1"
-                    >
-                      <option value="All">All Categories</option>
-                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                
+                <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto flex-wrap">
+                    {/* Filters Group */}
+                    <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0">
+                        {/* Category Filter */}
+                        <div className="relative min-w-[140px]">
+                           <Filter className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" />
+                           <select 
+                              value={selectedCategory} 
+                              onChange={(e) => setSelectedCategory(e.target.value)}
+                              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-brand-500 bg-white appearance-none cursor-pointer hover:border-gray-300 transition-colors"
+                            >
+                              <option value="All">All Categories</option>
+                              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Instructor Filter - Conditional */}
+                        {showInstructorFilter && (
+                           <div className="relative min-w-[140px]">
+                             <Users className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" />
+                             <select 
+                                value={selectedInstructor} 
+                                onChange={(e) => setSelectedInstructor(e.target.value)}
+                                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-brand-500 bg-white appearance-none cursor-pointer hover:border-gray-300 transition-colors"
+                              >
+                                <option value="All">All Instructors</option>
+                                {instructors.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                              </select>
+                          </div>
+                        )}
+                    </div>
+                    
+                    {/* Date Range & Reset */}
+                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                       <input 
+                         type="date" 
+                         value={dateFilter.start}
+                         onChange={(e) => setDateFilter(prev => ({ ...prev, start: e.target.value }))}
+                         className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-brand-500 bg-white text-gray-600 w-full sm:w-auto"
+                         placeholder="Start Date"
+                       />
+                       <span className="text-gray-400 hidden sm:inline">-</span>
+                       <input 
+                         type="date" 
+                         value={dateFilter.end}
+                         onChange={(e) => setDateFilter(prev => ({ ...prev, end: e.target.value }))}
+                         className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-brand-500 bg-white text-gray-600 w-full sm:w-auto"
+                       />
+                       
+                       {hasActiveFilters && (
+                         <button 
+                           onClick={resetFilters}
+                           className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors ml-auto sm:ml-0"
+                           title="Clear Filters"
+                         >
+                           <X className="w-4 h-4" />
+                         </button>
+                       )}
+                    </div>
                 </div>
             </div>
 
             {displayedCourses.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p>No courses found in this view.</p>
+                <p>No courses found matching your criteria.</p>
+                {hasActiveFilters && (
+                   <button onClick={resetFilters} className="text-brand-600 hover:underline mt-2 text-sm">
+                     Clear all filters
+                   </button>
+                )}
               </div>
             ) : (
               <div className="grid gap-4">
@@ -289,10 +368,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         </div>
                         <h4 className="font-semibold text-gray-900">{course.title}</h4>
                         <p className="text-sm text-gray-500 line-clamp-1">{course.description}</p>
-                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                        <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-gray-500">
                           <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {course.enrolledStudentIds.length} / {course.capacity}</span>
                           <span>${course.price}</span>
                           <span>{course.date}</span>
+                          <span className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">
+                             <span className="font-medium">Instr:</span> {course.instructorName}
+                          </span>
                         </div>
                       </div>
                     </div>
