@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { User, Course, UserRole } from './types';
 import { Dashboard } from './components/Dashboard';
 import { Button } from './components/Button';
@@ -11,11 +11,15 @@ import {
   LogOut, 
   Search,
   CheckCircle,
-  MapPin
+  MapPin,
+  Mail,
+  Lock,
+  ArrowRight,
+  UserPlus
 } from 'lucide-react';
 
 // --- MOCK DATA ---
-const MOCK_USERS: User[] = [
+const INITIAL_USERS: User[] = [
   { id: '1', name: 'Alice Admin', email: 'alice@craft.com', role: UserRole.ADMIN, avatar: 'https://picsum.photos/id/1/200/200' },
   { id: '2', name: 'Bob Instructor', email: 'bob@craft.com', role: UserRole.INSTRUCTOR, avatar: 'https://picsum.photos/id/2/200/200' },
   { id: '3', name: 'Charlie Student', email: 'charlie@gmail.com', role: UserRole.STUDENT, avatar: 'https://picsum.photos/id/3/200/200' },
@@ -100,16 +104,59 @@ const MOCK_COURSES: Course[] = [
 
 const App: React.FC = () => {
   // Global State
+  const [allUsers, setAllUsers] = useState<User[]>(INITIAL_USERS);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [courses, setCourses] = useState<Course[]>(MOCK_COURSES);
-  const [view, setView] = useState<'home' | 'courses' | 'dashboard'>('home');
+  const [view, setView] = useState<'home' | 'courses' | 'dashboard' | 'auth'>('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Auth State
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authName, setAuthName] = useState('');
+  const [authRole, setAuthRole] = useState<UserRole>(UserRole.STUDENT);
 
   // Handlers
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     setView('dashboard');
+    // Reset auth form
+    setAuthEmail('');
+    setAuthPassword('');
+    setAuthName('');
+  };
+
+  const handleAuthSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (authMode === 'login') {
+      const user = allUsers.find(u => u.email.toLowerCase() === authEmail.toLowerCase());
+      if (user) {
+        // In a real app, we would check the password here
+        handleLogin(user);
+      } else {
+        alert("User not found. Please check your email or register.");
+      }
+    } else {
+      // Register
+      if (allUsers.some(u => u.email.toLowerCase() === authEmail.toLowerCase())) {
+        alert("Email already exists. Please login.");
+        return;
+      }
+      
+      const newUser: User = {
+        id: Date.now().toString(),
+        name: authName,
+        email: authEmail,
+        role: authRole,
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(authName)}&background=random`
+      };
+      
+      setAllUsers([...allUsers, newUser]);
+      handleLogin(newUser);
+    }
   };
 
   const handleLogout = () => {
@@ -119,7 +166,7 @@ const App: React.FC = () => {
 
   const handleEnroll = (courseId: string) => {
     if (!currentUser) {
-      alert("Please login to enroll.");
+      setView('auth');
       return;
     }
     if (currentUser.role !== UserRole.STUDENT) {
@@ -150,6 +197,131 @@ const App: React.FC = () => {
   };
 
   // Views
+  const renderAuth = () => (
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        <div className="p-8">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-gray-900">
+              {authMode === 'login' ? 'Welcome Back' : 'Create Account'}
+            </h2>
+            <p className="text-gray-500 mt-2">
+              {authMode === 'login' ? 'Sign in to access your workshops' : 'Join our creative community today'}
+            </p>
+          </div>
+
+          <form onSubmit={handleAuthSubmit} className="space-y-4">
+            {authMode === 'register' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <div className="relative">
+                  <UserIcon className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                  <input 
+                    type="text" 
+                    required
+                    value={authName}
+                    onChange={(e) => setAuthName(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                    placeholder="John Doe"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                <input 
+                  type="email" 
+                  required
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                  placeholder="you@example.com"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                <input 
+                  type="password" 
+                  required
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            {authMode === 'register' && (
+               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">I want to...</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAuthRole(UserRole.STUDENT)}
+                    className={`py-2 px-3 text-sm font-medium rounded-lg border ${authRole === UserRole.STUDENT ? 'bg-brand-50 border-brand-500 text-brand-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                  >
+                    Learn Crafts
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAuthRole(UserRole.INSTRUCTOR)}
+                    className={`py-2 px-3 text-sm font-medium rounded-lg border ${authRole === UserRole.INSTRUCTOR ? 'bg-brand-50 border-brand-500 text-brand-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                  >
+                    Teach Workshops
+                  </button>
+                </div>
+               </div>
+            )}
+
+            <Button type="submit" className="w-full justify-center py-3 text-lg mt-6">
+              {authMode === 'login' ? 'Sign In' : 'Sign Up'} <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-gray-600">
+            {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
+            <button 
+              onClick={() => {
+                setAuthMode(authMode === 'login' ? 'register' : 'login');
+                setAuthEmail('');
+                setAuthPassword('');
+                setAuthName('');
+              }}
+              className="text-brand-600 font-semibold hover:underline"
+            >
+              {authMode === 'login' ? 'Register now' : 'Log in here'}
+            </button>
+          </div>
+
+          {/* Demo Login Shortcuts */}
+          {authMode === 'login' && (
+            <div className="mt-8 pt-6 border-t border-gray-100">
+              <p className="text-xs text-center text-gray-400 mb-3 uppercase tracking-wider font-semibold">Demo Accounts</p>
+              <div className="flex justify-center gap-2">
+                 {INITIAL_USERS.map(u => (
+                    <button 
+                      key={u.id}
+                      onClick={() => handleLogin(u)}
+                      className="text-xs px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full border border-gray-200 transition-colors"
+                    >
+                      {u.role}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   const renderHome = () => (
     <div className="space-y-16 pb-16">
       {/* Hero */}
@@ -171,9 +343,16 @@ const App: React.FC = () => {
           <p className="text-lg md:text-xl text-gray-200 mb-8">
             Join our community of makers. Master traditional crafts or explore modern DIY techniques with expert instructors.
           </p>
-          <Button onClick={() => setView('courses')} className="text-lg px-8 py-3">
-            Browse Workshops
-          </Button>
+          <div className="flex gap-4">
+             <Button onClick={() => setView('courses')} className="text-lg px-8 py-3">
+              Browse Workshops
+            </Button>
+            {!currentUser && (
+               <Button onClick={() => setView('auth')} variant="secondary" className="text-lg px-8 py-3 bg-white/10 text-white hover:bg-white/20 border border-white/30 backdrop-blur-sm">
+                 Join Now
+               </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -274,7 +453,7 @@ const App: React.FC = () => {
                       </span>
                     ) : (
                       <Button 
-                        disabled={isFull || !currentUser || currentUser.role !== UserRole.STUDENT}
+                        disabled={isFull || (currentUser && currentUser.role !== UserRole.STUDENT)}
                         onClick={() => handleEnroll(course.id)}
                         className="w-1/2"
                       >
@@ -321,17 +500,10 @@ const App: React.FC = () => {
                   </Button>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <div className="text-xs text-gray-400 mr-2">Demo Login:</div>
-                  {MOCK_USERS.map(u => (
-                    <button 
-                      key={u.id}
-                      onClick={() => handleLogin(u)}
-                      className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 transition-colors"
-                    >
-                      {u.role.charAt(0) + u.role.slice(1).toLowerCase()}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-4">
+                  <Button onClick={() => setView('auth')} className="py-2">
+                    Log In
+                  </Button>
                 </div>
               )}
             </div>
@@ -357,16 +529,7 @@ const App: React.FC = () => {
                    <button onClick={handleLogout} className="block w-full text-left px-3 py-2 text-base font-medium text-red-600 hover:bg-red-50 rounded-md">Logout</button>
                  </>
                ) : (
-                 <div className="p-3 bg-gray-50 rounded-md mt-2">
-                   <p className="text-xs text-gray-500 mb-2">Login as:</p>
-                   <div className="flex flex-wrap gap-2">
-                     {MOCK_USERS.map(u => (
-                        <button key={u.id} onClick={() => handleLogin(u)} className="text-xs bg-white border px-2 py-1 rounded shadow-sm">
-                          {u.name}
-                        </button>
-                     ))}
-                   </div>
-                 </div>
+                 <button onClick={() => { setView('auth'); setMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 text-base font-medium text-brand-600 bg-brand-50 rounded-md">Log In / Register</button>
                )}
              </div>
           </div>
@@ -377,11 +540,12 @@ const App: React.FC = () => {
       <main className="max-w-7xl mx-auto px-0 md:px-4 py-6">
         {view === 'home' && renderHome()}
         {view === 'courses' && renderCourses()}
+        {view === 'auth' && renderAuth()}
         {view === 'dashboard' && currentUser && (
           <Dashboard 
             user={currentUser} 
             courses={courses}
-            allUsers={MOCK_USERS}
+            allUsers={allUsers}
             onAddCourse={handleAddCourse}
             onDeleteCourse={handleDeleteCourse}
           />
