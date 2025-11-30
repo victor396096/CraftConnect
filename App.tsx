@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from './db';
 import { User, Course, UserRole } from './types';
 import { Dashboard } from './components/Dashboard';
 import { Button } from './components/Button';
@@ -18,95 +20,14 @@ import {
   UserPlus
 } from 'lucide-react';
 
-// --- MOCK DATA ---
-const INITIAL_USERS: User[] = [
-  { id: '1', name: 'Alice Admin', email: 'alice@craft.com', role: UserRole.ADMIN, avatar: 'https://picsum.photos/id/1/200/200' },
-  { id: '2', name: 'Bob Instructor', email: 'bob@craft.com', role: UserRole.INSTRUCTOR, avatar: 'https://picsum.photos/id/2/200/200' },
-  { id: '3', name: 'Charlie Student', email: 'charlie@gmail.com', role: UserRole.STUDENT, avatar: 'https://picsum.photos/id/3/200/200' },
-];
-
-// Helper to get a date string N days from now
-const getDateFromNow = (days: number) => {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().split('T')[0];
-};
-
-const MOCK_COURSES: Course[] = [
-  {
-    id: 'c1',
-    title: 'Modern Ceramics & Glazing',
-    description: 'Learn the fundamentals of wheel throwing and glazing techniques. Create your own bowl set.',
-    instructorId: '2',
-    instructorName: 'Bob Instructor',
-    date: getDateFromNow(2),
-    price: 120,
-    capacity: 8,
-    enrolledStudentIds: ['3'],
-    imageUrl: 'https://picsum.photos/id/40/800/600',
-    category: 'Ceramics'
-  },
-  {
-    id: 'c2',
-    title: 'Leather Crafting Basics',
-    description: 'Design and stitch your own leather wallet. Tools and materials provided.',
-    instructorId: '2',
-    instructorName: 'Bob Instructor',
-    date: getDateFromNow(7),
-    price: 95,
-    capacity: 6,
-    enrolledStudentIds: [],
-    imageUrl: 'https://picsum.photos/id/80/800/600',
-    category: 'Leather'
-  },
-  {
-    id: 'c3',
-    title: 'Watercolor Landscapes',
-    description: 'Capture the beauty of nature with watercolor techniques. Suitable for beginners.',
-    instructorId: '1',
-    instructorName: 'Alice Admin',
-    date: getDateFromNow(10),
-    price: 60,
-    capacity: 12,
-    enrolledStudentIds: ['3'],
-    imageUrl: 'https://picsum.photos/id/90/800/600',
-    category: 'Painting'
-  },
-  {
-    id: 'c4',
-    title: 'Rustic Wood Stool',
-    description: 'Build your own three-legged stool using traditional joinery. No power tools needed.',
-    instructorId: '2',
-    instructorName: 'Bob Instructor',
-    date: getDateFromNow(14),
-    price: 150,
-    capacity: 5,
-    enrolledStudentIds: [],
-    imageUrl: 'https://picsum.photos/id/106/800/600',
-    category: 'Woodworking'
-  },
-  {
-    id: 'c5',
-    title: 'Intro to Weaving',
-    description: 'Learn the basics of weaving on a frame loom. Create a beautiful wall hanging.',
-    instructorId: '1',
-    instructorName: 'Alice Admin',
-    date: getDateFromNow(20),
-    price: 85,
-    capacity: 10,
-    enrolledStudentIds: [],
-    imageUrl: 'https://picsum.photos/id/225/800/600',
-    category: 'Textiles'
-  }
-];
-
 // --- APP COMPONENT ---
 
 const App: React.FC = () => {
-  // Global State
-  const [allUsers, setAllUsers] = useState<User[]>(INITIAL_USERS);
+  // Global State (Replaced with Live Query)
+  const allUsers = useLiveQuery(() => db.users.toArray()) || [];
+  const courses = useLiveQuery(() => db.courses.toArray()) || [];
+  
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [courses, setCourses] = useState<Course[]>(MOCK_COURSES);
   const [view, setView] = useState<'home' | 'courses' | 'dashboard' | 'auth'>('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -128,11 +49,12 @@ const App: React.FC = () => {
     setAuthName('');
   };
 
-  const handleAuthSubmit = (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (authMode === 'login') {
-      const user = allUsers.find(u => u.email.toLowerCase() === authEmail.toLowerCase());
+      const user = await db.users.where('email').equals(authEmail.toLowerCase()).first();
+      
       if (user) {
         // In a real app, we would check the password here
         handleLogin(user);
@@ -141,7 +63,9 @@ const App: React.FC = () => {
       }
     } else {
       // Register
-      if (allUsers.some(u => u.email.toLowerCase() === authEmail.toLowerCase())) {
+      const existingUser = await db.users.where('email').equals(authEmail.toLowerCase()).first();
+      
+      if (existingUser) {
         alert("Email already exists. Please login.");
         return;
       }
@@ -149,12 +73,12 @@ const App: React.FC = () => {
       const newUser: User = {
         id: Date.now().toString(),
         name: authName,
-        email: authEmail,
+        email: authEmail.toLowerCase(),
         role: authRole,
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(authName)}&background=random`
       };
       
-      setAllUsers([...allUsers, newUser]);
+      await db.users.add(newUser);
       handleLogin(newUser);
     }
   };
@@ -164,7 +88,7 @@ const App: React.FC = () => {
     setView('home');
   };
 
-  const handleEnroll = (courseId: string) => {
+  const handleEnroll = async (courseId: string) => {
     if (!currentUser) {
       setView('auth');
       return;
@@ -174,26 +98,30 @@ const App: React.FC = () => {
       return;
     }
 
-    setCourses(prev => prev.map(c => {
-      if (c.id === courseId) {
-        if (c.enrolledStudentIds.includes(currentUser.id)) return c;
-        if (c.enrolledStudentIds.length >= c.capacity) {
-          alert("Course is full!");
-          return c;
-        }
-        return { ...c, enrolledStudentIds: [...c.enrolledStudentIds, currentUser.id] };
-      }
-      return c;
-    }));
+    const course = courses.find(c => c.id === courseId);
+    if (!course) return;
+
+    if (course.enrolledStudentIds.includes(currentUser.id)) return;
+    
+    if (course.enrolledStudentIds.length >= course.capacity) {
+      alert("Course is full!");
+      return;
+    }
+
+    // Update DB
+    await db.courses.update(courseId, {
+      enrolledStudentIds: [...course.enrolledStudentIds, currentUser.id]
+    });
+    
     alert("Successfully enrolled!");
   };
 
-  const handleAddCourse = (newCourse: Course) => {
-    setCourses([newCourse, ...courses]);
+  const handleAddCourse = async (newCourse: Course) => {
+    await db.courses.add(newCourse);
   };
 
-  const handleDeleteCourse = (courseId: string) => {
-    setCourses(prev => prev.filter(c => c.id !== courseId));
+  const handleDeleteCourse = async (courseId: string) => {
+    await db.courses.delete(courseId);
   };
 
   // Views
@@ -305,7 +233,7 @@ const App: React.FC = () => {
             <div className="mt-8 pt-6 border-t border-gray-100">
               <p className="text-xs text-center text-gray-400 mb-3 uppercase tracking-wider font-semibold">Demo Accounts</p>
               <div className="flex justify-center gap-2">
-                 {INITIAL_USERS.map(u => (
+                 {allUsers.filter(u => ['1','2','3'].includes(u.id)).map(u => (
                     <button 
                       key={u.id}
                       onClick={() => handleLogin(u)}
